@@ -1,0 +1,102 @@
+databases:
+  - name: redash
+    databaseName: redash
+    user: redash
+
+services:
+  # Do not forget to run `render-redash create_db` in Render Shell after creating this service.
+  - type: web
+    name: redash
+    env: docker
+    plan: standard
+    dockerCommand: render-redash server
+    envVars:
+      - key: REDASH_DATABASE_URL
+        fromDatabase:
+          name: redash
+          property: connectionString
+      - key: REDIS_HOSTPORT
+        fromService:
+          type: pserv
+          name: redash-redis
+          property: hostport
+      - fromGroup: redash-shared
+      - fromGroup: redash-mail
+
+  - type: worker
+    name: redash-scheduler
+    env: docker
+    dockerCommand: render-redash scheduler
+    envVars:
+      - key: REDASH_DATABASE_URL
+        fromDatabase:
+          name: redash
+          property: connectionString
+      - key: REDIS_HOSTPORT
+        fromService:
+          type: pserv
+          name: redash-redis
+          property: hostport
+      - fromGroup: redash-shared
+      - fromGroup: redash-mail
+      - key: QUEUES
+        value: "celery"
+      - key: WORKERS_COUNT
+        value: 1
+
+  - type: worker
+    name: redash-worker
+    env: docker
+    plan: standard
+    dockerCommand: render-redash worker
+    envVars:
+      - key: REDASH_DATABASE_URL
+        fromDatabase:
+          name: redash
+          property: connectionString
+      - key: REDIS_HOSTPORT
+        fromService:
+          type: pserv
+          name: redash-redis
+          property: hostport
+      - fromGroup: redash-shared
+      - fromGroup: redash-mail
+      - key: QUEUES
+        value: "queries,scheduled_queries,schemas"
+
+  - type: pserv
+    name: redash-redis
+    env: docker
+    repo: https://github.com/render-examples/redis.git
+    disk:
+      name: data
+      mountPath: /var/lib/redis
+      sizeGB: 10
+
+envVarGroups:
+  - name: redash-shared
+    envVars:
+      - key: REDASH_LOG_LEVEL
+        value: "INFO"
+      - key: REDASH_COOKIE_SECRET
+        generateValue: true
+
+  # Uncomment and fill following fields if you wish to set up mailing in Redash.
+  # It’s recommended to use some mail service, like Amazon SES or Mailgun
+  # to send emails to ensure deliverability.
+  - name: redash-mail
+    envVars:
+#      - key: REDASH_MAIL_SERVER
+#        value: (SMTP server address)
+#      - key: REDASH_MAIL_PORT
+#        value: 25
+#      - key: REDASH_MAIL_USE_TLS
+#        value: false
+#      - key: REDASH_MAIL_USE_SSL
+#        value: false
+#      - key: REDASH_MAIL_USERNAME
+#        value: None
+#      - key: REDASH_MAIL_PASSWORD
+#        value: None
+#      - key: REDASH_MAIL_DEFAULT_SENDER
+#        value: (Email address to send from)
