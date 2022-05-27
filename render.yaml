@@ -5,21 +5,25 @@ databases:
 
 services:
   # Do not forget to run `render-redash create_db` in Render Shell after creating this service.
+  # If you have upgraded from a previous version, run `render-redash manage db upgrade` instead.
   - type: web
     name: redash
     env: docker
-    plan: standard
+    plan: standard plus
     dockerCommand: render-redash server
+    healthCheckPath: /ping
     envVars:
+      - key: PORT
+        value: 5000
       - key: REDASH_DATABASE_URL
         fromDatabase:
           name: redash
           property: connectionString
-      - key: REDIS_HOSTPORT
+      - key: REDASH_REDIS_URL
         fromService:
-          type: pserv
+          type: redis
           name: redash-redis
-          property: hostport
+          property: connectionString
       - fromGroup: redash-shared
       - fromGroup: redash-mail
 
@@ -32,17 +36,13 @@ services:
         fromDatabase:
           name: redash
           property: connectionString
-      - key: REDIS_HOSTPORT
+      - key: REDASH_REDIS_URL
         fromService:
-          type: pserv
+          type: redis
           name: redash-redis
-          property: hostport
+          property: connectionString
       - fromGroup: redash-shared
       - fromGroup: redash-mail
-      - key: QUEUES
-        value: "celery"
-      - key: WORKERS_COUNT
-        value: 1
 
   - type: worker
     name: redash-worker
@@ -54,24 +54,43 @@ services:
         fromDatabase:
           name: redash
           property: connectionString
-      - key: REDIS_HOSTPORT
+      - key: REDASH_REDIS_URL
         fromService:
-          type: pserv
+          type: redis
           name: redash-redis
-          property: hostport
+          property: connectionString
       - fromGroup: redash-shared
       - fromGroup: redash-mail
       - key: QUEUES
         value: "queries,scheduled_queries,schemas"
+      - key: WORKERS_COUNT
+        value: 2
 
-  - type: pserv
-    name: redash-redis
+  - type: worker
+    name: redash-default-worker
     env: docker
-    repo: https://github.com/render-examples/redis.git
-    disk:
-      name: data
-      mountPath: /var/lib/redis
-      sizeGB: 10
+    plan: standard
+    dockerCommand: render-redash worker
+    envVars:
+      - key: REDASH_DATABASE_URL
+        fromDatabase:
+          name: redash
+          property: connectionString
+      - key: REDASH_REDIS_URL
+        fromService:
+          type: redis
+          name: redash-redis
+          property: connectionString
+      - fromGroup: redash-shared
+      - fromGroup: redash-mail
+      - key: QUEUES
+        value: "periodic emails default"
+      - key: WORKERS_COUNT
+        value: 1
+
+  - type: redis
+    name: redash-redis
+    ipAllowList: []
 
 envVarGroups:
   - name: redash-shared
