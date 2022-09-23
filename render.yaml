@@ -10,6 +10,7 @@ services:
     env: docker
     plan: standard
     dockerCommand: render-redash server
+    autoDeploy: false
     envVars:
       - key: REDASH_DATABASE_URL
         fromDatabase:
@@ -27,6 +28,7 @@ services:
     name: redash-scheduler
     env: docker
     dockerCommand: render-redash scheduler
+    autoDeploy: false
     envVars:
       - key: REDASH_DATABASE_URL
         fromDatabase:
@@ -49,6 +51,7 @@ services:
     env: docker
     plan: standard
     dockerCommand: render-redash worker
+    autoDeploy: false
     envVars:
       - key: REDASH_DATABASE_URL
         fromDatabase:
@@ -68,6 +71,7 @@ services:
     name: redash-redis
     env: docker
     repo: https://github.com/render-examples/redis.git
+    autoDeploy: false
     disk:
       name: data
       mountPath: /var/lib/redis
